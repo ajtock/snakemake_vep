@@ -1,0 +1,75 @@
+# Snakemake workflow for annotating variants with pathogenicity predictions using ensembl-vep
+# NOTE: docker installation of ensemblorg/ensembl-vep is required,
+# including genome FASTA, cache, and (optionally) plugins.
+# For docker installation instructions, see https://www.ensembl.org/info/docs/tools/vep/script/vep_download.html
+# or use with custom files (e.g., ClinVar VCF, including TBI index), see examples at
+# https://www.ensembl.org/info/docs/tools/vep/script/vep_custom.html
+
+# Usage:
+# conda activate snakemake
+# snakemake -p --cores
+# conda deactivate
+
+# Load packages
+import glob
+import re
+import subprocess
+
+
+subprocess.run(["open", "-a", "Docker"])
+
+SRCDIR = srcdir("")
+os.environ["CWD"] = SRCDIR
+print(os.environ["CWD"])
+
+envvars:
+    "CWD"
+
+vcfgz = glob.glob("vep_data/input/*.consensus.variant-calls.vcf.gz")
+vcfgz = [re.sub("vep_data/input/", "", x) for x in vcfgz]
+vcfgz_prefix = [re.sub(".consensus.variant-calls.vcf.gz", "", x) for x in vcfgz]
+
+
+rule all:
+    input:
+        expand("vep_data/input/deanno/{vcfgz_prefix}.consensus.variant-calls.deanno.vcf",
+               vcfgz_prefix = vcfgz_prefix),
+        expand("vep_data/output/{vcfgz_prefix}.consensus.variant-calls.anno_vep.vcf", 
+               vcfgz_prefix = vcfgz_prefix),
+
+
+rule vcf_SnpEff_deanno:
+    input:
+        "vep_data/input/{vcfgz_prefix}.consensus.variant-calls.vcf.gz"
+    output:
+        gunzip = temp("vep_data/input/{vcfgz_prefix}.consensus.variant-calls.vcf"),
+        header = temp("vep_data/input/{vcfgz_prefix}.consensus.variant-calls.vcf_header"),
+        main   = temp("vep_data/input/{vcfgz_prefix}.consensus.variant-calls.vcf_main"),
+        deanno = "vep_data/input/deanno/{vcfgz_prefix}.consensus.variant-calls.deanno.vcf"
+    shell:
+        """
+        scripts/vcf_SnpEff_deanno.sh {input} > {output.deanno}
+        """
+
+rule vcf_vep_anno:
+    input:
+        "vep_data/input/deanno/{vcfgz_prefix}.consensus.variant-calls.deanno.vcf"
+    output:
+        "vep_data/output/{vcfgz_prefix}.consensus.variant-calls.anno_vep.vcf"
+    params:
+        cwd = os.environ["CWD"],
+        input_vep = re.sub("vep_data/", "", "vep_data/input/deanno/{vcfgz_prefix}.consensus.variant-calls.deanno.vcf"),
+        output_vep = re.sub("vep_data/", "", "vep_data/output/{vcfgz_prefix}.consensus.variant-calls.anno_vep.vcf")
+    shell:
+        "docker run"
+        "    --platform linux/amd64"
+        "    --rm"
+        "    -v {params.cwd}vep_data:/opt/vep/.vep"
+        "    ensemblorg/ensembl-vep vep"
+        "    --cache"
+        "    --offline"
+        "    --input_file {params.input_vep}"
+        "    --output_file {params.output_vep}"
+        "    --format vcf"
+        "    --vcf"
+        "    --custom custom/clinvar_20221217.vcf.gz,ClinVar,vcf,exact,0,ID,ALLELEID,CLNDISDB,CLNDN,CLNHGVS,CLNREVSTAT,CLNSIG,CLNVC,CLNVCSO,GENEINFO,MC,ORIGIN,RS"

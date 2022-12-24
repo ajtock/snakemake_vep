@@ -15,6 +15,7 @@ For use with custom files (e.g., ClinVar VCF, including TBI index), see examples
 Run the following commands in the workflow base directory:
 
 ```
+open -a Docker
 conda activate snakemake
 snakemake -p --cores
 conda deactivate

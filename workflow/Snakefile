@@ -51,6 +51,7 @@ rule vcf_SnpEff_deanno:
         scripts/vcf_SnpEff_deanno.sh {input} > {output.deanno}
         """
 
+
 rule vcf_vep_anno:
     input:
         "vep_data/input/deanno/{vcfgz_prefix}.consensus.variant-calls.deanno.vcf"

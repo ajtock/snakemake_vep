@@ -6,17 +6,21 @@
 # https://www.ensembl.org/info/docs/tools/vep/script/vep_custom.html
 
 # Usage:
+# open -a Docker
 # conda activate snakemake
 # snakemake -p --cores
 # conda deactivate
 
+
 # Load packages
 import glob
 import re
-import subprocess
+#import subprocess
 
-
-subprocess.run(["open", "-a", "Docker"])
+# NOTE: Opening Docker Desktop app to run and enable connections to
+# Docker daemon isn't fast enough when done as part of Snakefile workflow,
+# so must open before running snakemake (see "Usage" above)
+#subprocess.run(["open", "-a", "Docker"])
 
 SRCDIR = srcdir("")
 os.environ["CWD"] = SRCDIR

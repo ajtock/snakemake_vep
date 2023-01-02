@@ -29,11 +29,14 @@ print(os.environ["CWD"])
 envvars:
     "CWD"
 
+# Make list of VCF file prefixes for use as wildcards to allow Snakemake rules
+# to be run iteratively over the samples
 vcfgz = glob.glob("vep_data/input/*.consensus.variant-calls.vcf.gz")
 vcfgz = [re.sub("vep_data/input/", "", x) for x in vcfgz]
 vcfgz_prefix = [re.sub(".consensus.variant-calls.vcf.gz", "", x) for x in vcfgz]
 
 
+# Define target output files
 rule all:
     input:
         expand("vep_data/input/deanno/{vcfgz_prefix}.consensus.variant-calls.deanno.vcf",
@@ -42,6 +45,7 @@ rule all:
                vcfgz_prefix = vcfgz_prefix),
 
 
+# Remove SnpEff annotations from each VCF, generated as part of the TS pipeline
 rule vcf_SnpEff_deanno:
     input:
         "vep_data/input/{vcfgz_prefix}.consensus.variant-calls.vcf.gz"
@@ -55,7 +59,7 @@ rule vcf_SnpEff_deanno:
         scripts/vcf_SnpEff_deanno.sh {input} > {output.deanno}
         """
 
-
+# Add VEP annotations (e.g., ClinVar) to each VCF
 rule vcf_vep_anno:
     input:
         "vep_data/input/deanno/{vcfgz_prefix}.consensus.variant-calls.deanno.vcf"
@@ -63,8 +67,8 @@ rule vcf_vep_anno:
         "vep_data/output/{vcfgz_prefix}.consensus.variant-calls.anno_vep.vcf"
     params:
         cwd = os.environ["CWD"],
-        input_vep = re.sub("vep_data/", "", "vep_data/input/deanno/{vcfgz_prefix}.consensus.variant-calls.deanno.vcf"),
-        output_vep = re.sub("vep_data/", "", "vep_data/output/{vcfgz_prefix}.consensus.variant-calls.anno_vep.vcf")
+        input_vep=lambda wildcards, input: re.sub("vep_data/", "", input[0]),
+        output_vep=lambda wildcards, output: re.sub("vep_data/", "", output[0])
     shell:
         "docker run"
         "    --platform linux/amd64"

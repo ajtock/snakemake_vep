@@ -23,9 +23,9 @@ def create_parser():
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--inDir", type=str, default="/Users/ajtock/dnanexus/snakemake_vep/workflow/vep_data/output",
-                        help="The path to the directory containing VEP-annotated VCF files. Default: Users/ajtock/dnanexus/snakemake_vep/workflow")
-    parser.add_argument("-m", "--sampleManifest", type=str, default="/Users/ajtock/dnanexus/snakemake_vep/workflow/manifest/ori02_ts_sample_manifest_2022_09_26_EW.csv",
-                        help="CSV of sample manifest including mean depth. Default: /Users/ajtock/dnanexus/snakemake_vep/workflow/manifest/ori02_ts_sample_manifest_2022_09_26_EW.csv")
+                        help="Path to the directory containing VEP-annotated VCF files. Default: Users/ajtock/dnanexus/snakemake_vep/workflow/vep_data/output")
+    parser.add_argument("-m", "--sampleManifest", type=str, default="/Users/ajtock/dnanexus/snakemake_vep/workflow/resources/manifest/ori02_ts_sample_manifest_2022_09_26_EW.csv",
+                        help="CSV of sample manifest. Default: /Users/ajtock/dnanexus/snakemake_vep/workflow/resources/manifest/ori02_ts_sample_manifest_2022_09_26_EW.csv")
     parser.add_argument("--mode", default="client")
     parser.add_argument("--port", default=50301)
     parser.add_argument("--host", default="127.0.0.1")
@@ -72,41 +72,56 @@ def cat_vcf_files(indir, info_cols):
     # End args
     file_list = glob.glob(indir + "/*calls.anno_vep.vcf", recursive=True)
     header = "CHROM POS ID REF ALT QUAL FILTER INFO FORMAT GT".split()
-    vcf_concat_DF = pd.DataFrame()
+    vcf = pd.DataFrame()
     for file_path in file_list:
-        vcf = pd.read_csv(file_path, sep="\t", comment="#", names=header)
-
-        # Convert INFO into a dictionary of subfields
-        vcf["INFO"] = vcf["INFO"].str.split(";") \
-            .apply(lambda x: dict([y.split("=") for y in x]))
-        # Add given INFO subfields as columns
-        if info_cols is not None:
-            for field, dtype in info_cols.items():
-                try:
-                    vcf[field] = vcf["INFO"].apply(lambda x: x.get(field, None))
-                    vcf[field] = vcf[field].astype(dtype)
-                except:
-                    pass
-
-        # Convert GT into list and add columns containing list elements
-        vcf["GT"] = vcf["GT"].str.split(":")
-        vcf["GENOTYPE"] = [x[0] for x in vcf["GT"]]
-        vcf["REF_DEPTH"] = [int(x[1].split(",")[0]) for x in vcf["GT"]]
-        vcf["ALT_DEPTH"] = [int(x[1].split(",")[1]) for x in vcf["GT"]]
-        vcf["VARIANT_DEPTH"] = [int(x[5]) for x in vcf["GT"]]
-        vcf["TOTAL_DEPTH"] = [int(x[3]) for x in vcf["GT"]]
-        vcf["TOTAL_DEPTH_LESS_NO_CALLS"] = vcf["ALT_DEPTH"] + vcf["REF_DEPTH"]
-        vcf["NO_CALLS"] = vcf["TOTAL_DEPTH"] - vcf["TOTAL_DEPTH_LESS_NO_CALLS"]
-        vcf["vaf"] = vcf["ALT_DEPTH"] / (vcf["ALT_DEPTH"] + vcf["REF_DEPTH"])
-
+        vcf_x = pd.read_csv(file_path, sep="\t", comment="#", names=header)
         # Concatenate VCFs
-        vcf_concat_DF = pd.concat(objs=[vcf_concat_DF, vcf],
-                                  axis=0,
-                                  ignore_index=True)
+        vcf = pd.concat(objs=[vcf, vcf_x],
+                        axis=0,
+                        ignore_index=True)
+
+    # Convert INFO into a dictionary of subfields
+    vcf["INFO"] = vcf["INFO"].str.split(";") \
+        .apply(lambda x: dict([y.split("=") for y in x]))
+    # Add given INFO subfields as columns
+    if info_cols is not None:
+        for field, dtype in info_cols.items():
+            vcf[field] = vcf["INFO"].apply(lambda x: x.get(field, None))
+            vcf[field] = vcf[field].astype(dtype)
+
+    # Convert CSQ into a list of subfields
+    vcf["CSQ_ANN_LIST"] = vcf["CSQ"].str.split(",")
+    vcf["CSQ_LIST"] = vcf["CSQ_ANN_LIST"] \
+        .apply(lambda x: [y.split("|") for y in x])
+    vcf["Consequence"] = vcf["CSQ_LIST"] \
+        .apply(lambda x: "__".join(list(dict.fromkeys(list(filter(None, [y[1] for y in x]))).keys())))
+    vcf["IMPACT"] = vcf["CSQ_LIST"] \
+        .apply(lambda x: "__".join(list(dict.fromkeys(list(filter(None, [y[2] for y in x]))).keys())))
+    vcf["SYMBOL"] = vcf["CSQ_LIST"] \
+        .apply(lambda x: "__".join(list(dict.fromkeys(list(filter(None, [y[3] for y in x]))).keys())))
+    vcf["Gene"] = vcf["CSQ_LIST"] \
+        .apply(lambda x: "__".join(list(dict.fromkeys(list(filter(None, [y[4] for y in x]))).keys())))
+    vcf["Feature_type"] = vcf["CSQ_LIST"] \
+        .apply(lambda x: "__".join(list(dict.fromkeys(list(filter(None, [y[5] for y in x]))).keys())))
+    vcf["Feature"] = vcf["CSQ_LIST"] \
+        .apply(lambda x: "__".join(list(dict.fromkeys(list(filter(None, [y[6] for y in x]))).keys())))
+    vcf["BIOTYPE"] = vcf["CSQ_LIST"] \
+        .apply(lambda x: "__".join(list(dict.fromkeys(list(filter(None, [y[7] for y in x]))).keys())))
+
+    # Convert GT into list and add columns containing list elements
+    vcf["GT"] = vcf["GT"].str.split(":")
+    vcf["GENOTYPE"] = [x[0] for x in vcf["GT"]]
+    vcf["REF_DEPTH"] = [int(x[1].split(",")[0]) for x in vcf["GT"]]
+    vcf["ALT_DEPTH"] = [int(x[1].split(",")[1]) for x in vcf["GT"]]
+    vcf["VARIANT_DEPTH"] = [int(x[5]) for x in vcf["GT"]]
+    vcf["TOTAL_DEPTH"] = [int(x[3]) for x in vcf["GT"]]
+    vcf["TOTAL_DEPTH_LESS_NO_CALLS"] = vcf["ALT_DEPTH"] + vcf["REF_DEPTH"]
+    vcf["NO_CALLS"] = vcf["TOTAL_DEPTH"] - vcf["TOTAL_DEPTH_LESS_NO_CALLS"]
+    vcf["vaf"] = vcf["ALT_DEPTH"] / (vcf["ALT_DEPTH"] + vcf["REF_DEPTH"])
 
     # Write to TSV
-    vcf_concat_DF.to_csv("results/concat_sample_VCFs.tsv",
-                         na_rep="NaN", sep="\t", header=True, index=False)
+    vcf.to_csv("results/concat_sample_VCFs.tsv",
+               na_rep="NaN", sep="\t", header=True, index=False)
 
     return vcf_concat_DF
 

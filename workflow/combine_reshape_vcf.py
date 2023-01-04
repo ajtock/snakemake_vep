@@ -156,8 +156,8 @@ def merge_vcf_mani(vcf_DF, mani_csv):
     merge_DF_dp = merge_DF.loc[
         (merge_DF["Mean On-Target Duplex Depth"] >= 1000) & \
         (merge_DF["alt_depth"] >= 3) & \
-        (merge_DF["gene_symbol"].str.contains("|".join(gene_list))) & \
-        (~merge_DF["FILTER"].str.contains("|".join(["NM8.0","Q10","q22.5"])))
+        (merge_DF["gene_symbol"].str.contains("|".join(gene_list)))
+    #    (~merge_DF["FILTER"].str.contains("|".join(["NM8.0","Q10","q22.5"])))
     ]
 
     # Get "pathogenic" variants based on VEP-derived ClinVar clinical significance annotations
@@ -176,6 +176,10 @@ def merge_vcf_mani(vcf_DF, mani_csv):
     ]
 
     # Reshape as matrices of VAF values
+    vaf_DF_dp_patho = merge_DF_dp_patho.pivot_table(index=["locus"],
+                                                    columns=["Sample ID", "Subject ID", "cat", "run_no"],
+                                                    values="vaf",
+                                                    fill_value="NaN")
     vaf_DF_dp_patho_CRC = merge_DF_dp_patho_CRC.pivot_table(index=["locus"],
                                                             columns=["Sample ID", "Subject ID", "cat", "run_no"],
                                                             values="vaf",
@@ -197,7 +201,8 @@ def merge_vcf_mani(vcf_DF, mani_csv):
                                                         right=vaf_DF_dp_patho_Polyps,
                                                         how="left",
                                                         on=["locus"])
-
+    vaf_DF_dp_patho.to_csv("results/vaf_DF_dp_patho.tsv",
+                            na_rep="NaN", sep="\t", header=True, index=True)
     vaf_DF_dp_patho_CRC_merge_Control.to_csv("results/vaf_DF_dp_patho_CRC_merge_Control.tsv",
                                              na_rep="NaN", sep="\t", header=True, index=True)
     vaf_DF_dp_patho_CRC_merge_Control_Polyps.to_csv("results/vaf_DF_dp_patho_CRC_merge_Control_Polyps.tsv",

@@ -119,11 +119,14 @@ def cat_vcf_files(indir, info_cols):
     vcf["NO_CALLS"] = vcf["TOTAL_DEPTH"] - vcf["TOTAL_DEPTH_LESS_NO_CALLS"]
     vcf["vaf"] = vcf["ALT_DEPTH"] / (vcf["ALT_DEPTH"] + vcf["REF_DEPTH"])
 
+    # Remove unnecessary columns
+    vcf.drop(columns=["CSQ_ANN_LIST","CSQ_LIST"], inplace=True)
+
     # Write to TSV
     vcf.to_csv("results/concat_sample_VCFs.tsv",
                na_rep="NaN", sep="\t", header=True, index=False)
 
-    return vcf_concat_DF
+    return vcf
 
 
 # Reproduce Canonical SPDI

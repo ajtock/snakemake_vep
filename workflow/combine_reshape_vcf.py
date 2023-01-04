@@ -151,7 +151,8 @@ def merge_vcf_mani(vcf_DF, mani_csv):
     merge_DF["locus"] = merge_DF["CHROM"].astype(str) + "_" + \
                         merge_DF["POS"].astype(str) + "_" + \
                         merge_DF["END"].astype(str) + "_" + \
-                        merge_DF["gene_symbol"].astype(str)
+                        merge_DF["gene_symbol"].astype(str) + "_" + \
+                        merge_DF["ALT"].astype(str)
     merge_DF_dp = merge_DF.loc[
         (merge_DF["Mean On-Target Duplex Depth"] >= 1000) & \
         (merge_DF["alt_depth"] >= 3) & \
@@ -175,15 +176,15 @@ def merge_vcf_mani(vcf_DF, mani_csv):
     ]
 
     # Reshape as matrices of VAF values
-    vaf_DF_dp_patho_CRC = merge_DF_dp_patho_CRC.pivot_table(index=["locus", "CHROM", "POS", "END", "ALT", "gene_symbol", "gene_ID"],
+    vaf_DF_dp_patho_CRC = merge_DF_dp_patho_CRC.pivot_table(index=["locus"],
                                                             columns=["Sample ID", "Subject ID", "cat", "run_no"],
                                                             values="vaf",
                                                             fill_value="NaN")
-    vaf_DF_dp_patho_Control = merge_DF_dp_patho_Control.pivot_table(index=["locus", "CHROM", "POS", "END", "ALT", "gene_symbol", "gene_ID"],
+    vaf_DF_dp_patho_Control = merge_DF_dp_patho_Control.pivot_table(index=["locus"],
                                                                     columns=["Sample ID", "Subject ID", "cat", "run_no"],
                                                                     values="vaf",
                                                                     fill_value="NaN")
-    vaf_DF_dp_patho_Polyps = merge_DF_dp_patho_Polyps.pivot_table(index=["locus", "CHROM", "POS", "END", "ALT", "gene_symbol", "gene_ID"],
+    vaf_DF_dp_patho_Polyps = merge_DF_dp_patho_Polyps.pivot_table(index=["locus"],
                                                                   columns=["Sample ID", "Subject ID", "cat", "run_no"],
                                                                   values="vaf",
                                                                   fill_value="NaN")
@@ -191,13 +192,13 @@ def merge_vcf_mani(vcf_DF, mani_csv):
     vaf_DF_dp_patho_CRC_merge_Control = pd.merge(left=vaf_DF_dp_patho_CRC,
                                                  right=vaf_DF_dp_patho_Control,
                                                  how="left",
-                                                 on=["locus", "CHROM", "POS", "END", "ALT", "gene_symbol", "gene_ID"])
+                                                 on=["locus"])
     vaf_DF_dp_patho_CRC_merge_Control_Polyps = pd.merge(left=vaf_DF_dp_patho_CRC_merge_Control,
                                                         right=vaf_DF_dp_patho_Polyps,
                                                         how="left",
-                                                        on=["locus", "CHROM", "POS", "END", "ALT", "gene_symbol", "gene_ID"])
+                                                        on=["locus"])
 
-    vaf_DF_dp_patho_CRC_merge_Control.to_csv("results/vaf_DF_dp_patho_CRC_not_LOW_merge_Control.tsv",
+    vaf_DF_dp_patho_CRC_merge_Control.to_csv("results/vaf_DF_dp_patho_CRC_merge_Control.tsv",
                                              na_rep="NaN", sep="\t", header=True, index=True)
     vaf_DF_dp_patho_CRC_merge_Control_Polyps.to_csv("results/vaf_DF_dp_patho_CRC_merge_Control_Polyps.tsv",
                                                     na_rep="NaN", sep="\t", header=True, index=True)

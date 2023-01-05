@@ -4,12 +4,13 @@
 # Date: 13/12/22
 
 # Usage:
+# ./cluster_analysis.R results/ vaf_DF_dp_patho_merge_vaf_DF_dp.tsv
 # ./cluster_analysis.R results/ vaf_DF_dp_patho.tsv
-# ./cluster_analysis.R results/ vaf_DF_dp_patho_CRC_merge_Control.tsv
-# ./cluster_analysis.R results/ vaf_DF_dp_patho_CRC_merge_Control_Polyps.tsv
+# ./cluster_analysis.R results/ vaf_DF_dp_CRC_Control_patho_merge_vaf_DF_dp_CRC_Control.tsv
+# ./cluster_analysis.R results/ vaf_DF_dp_CRC_Control_patho.tsv
 
 #indir="results/"
-#vaf_tsv="vaf_DF_dp_patho.tsv"
+#vaf_tsv="vaf_DF_dp_patho_merge_vaf_DF_dp.tsv"
 
 args = commandArgs(trailingOnly=T)
 indir = args[1]
@@ -114,7 +115,7 @@ pamk_n_cl = function(mat, k_range, pamk_criterion, use_pam) {
 
 set.seed(4849345)
 vaf_mat_pamk = pamk_n_cl(mat=t(vaf_mat),
-                         k_range=2:20,
+                         k_range=1:20,
                          pamk_criterion=pamk_criterion,
                          use_pam=use_pam)
 vaf_mat_pamk_n_cl = vaf_mat_pamk$nc

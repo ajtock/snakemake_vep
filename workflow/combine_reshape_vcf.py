@@ -5,7 +5,7 @@
 
 # Usage:
 # conda activate 6run_analysis
-# ./combine_reshape_vcf.py -d /Users/ajtock/dnanexus -s "run*_EU" -m sample_manifest/ori02_ts_sample_manifest_2022_09_26_EW.csv -c clinvar/clinvar_result
+# ./combine_reshape_vcf.py -d /Users/ajtock/dnanexus/snakemake_vep/workflow/vep_data/output -m /Users/ajtock/dnanexus/snakemake_vep/workflow/resources/manifest/ori02_ts_sample_manifest_2022_09_26_EW.csv
 # conda deactivate
 
 import os
@@ -154,59 +154,78 @@ def merge_vcf_mani(vcf_DF, mani_csv):
                         merge_DF["gene_symbol"].astype(str) + "_" + \
                         merge_DF["ALT"].astype(str)
     merge_DF_dp = merge_DF.loc[
-        (merge_DF["Mean On-Target Duplex Depth"] >= 1000) & \
-        (merge_DF["alt_depth"] >= 3) & \
-        (merge_DF["gene_symbol"].str.contains("|".join(gene_list)))
-    #    (~merge_DF["FILTER"].str.contains("|".join(["NM8.0","Q10","q22.5"])))
+        (merge_DF["Mean On-Target Duplex Depth"] >= 1000)
+    ]
+    merge_DF_dp_CRC_Control = merge_DF_dp.loc[
+        (merge_DF_dp["cat"].isin(["CRC+", "Control"]))
     ]
 
-    # Get "pathogenic" variants based on VEP-derived ClinVar clinical significance annotations
+    #merge_DF_dp = merge_DF.loc[
+    #    (merge_DF["Mean On-Target Duplex Depth"] >= 1000) & \
+    #    (merge_DF["alt_depth"] >= 3) & \
+    #    (merge_DF["gene_symbol"].str.contains("|".join(gene_list)))
+    ##    (merge_DF["vaf"] < 0.25) & \
+    ##    (~merge_DF["FILTER"].str.contains("|".join(["NM8.0","Q10","q22.5"])))
+    #]
+
+    # Get "pathogenic" variants based on VEP-derived
+    # ClinVar clinical significance annotations
     merge_DF_dp_patho = merge_DF_dp.loc[
+        (merge_DF_dp["alt_depth"] >= 3) & \
+        (merge_DF_dp["gene_symbol"].str.contains("|".join(gene_list))) & \
+        #(merge_DF_dp["vaf"] < 0.25) & \
+        (~merge_DF_dp["FILTER"].str.contains("|".join(["NM8.0", "Q10", "q22.5"]))) & \
         (merge_DF_dp["CSQ"].str.contains("pathogenic", case=False)) & \
         (~merge_DF_dp["CSQ"].str.contains("Conflicting", case=False))
     ]
-    merge_DF_dp_patho_CRC = merge_DF_dp_patho.loc[
-        (merge_DF_dp_patho["cat"] == "CRC+")
-    ]
-    merge_DF_dp_patho_Control = merge_DF_dp_patho.loc[
-        (merge_DF_dp_patho["cat"] == "Control")
-    ]
-    merge_DF_dp_patho_Polyps = merge_DF_dp_patho.loc[
-        (merge_DF_dp_patho["cat"] == "Polyps+")
-    ]
+    merge_DF_dp_CRC_Control_patho = merge_DF_dp_CRC_Control.loc[
+        (merge_DF_dp_CRC_Control["alt_depth"] >= 3) & \
+        (merge_DF_dp_CRC_Control["gene_symbol"].str.contains("|".join(gene_list))) & \
+        # (merge_DF_dp_CRC_Control["vaf"] < 0.25) & \
+        (~merge_DF_dp_CRC_Control["FILTER"].str.contains("|".join(["NM8.0", "Q10", "q22.5"]))) & \
+        (merge_DF_dp_CRC_Control["CSQ"].str.contains("pathogenic", case=False)) & \
+        (~merge_DF_dp_CRC_Control["CSQ"].str.contains("Conflicting", case=False))
+        ]
 
     # Reshape as matrices of VAF values
+    vaf_DF_dp = merge_DF_dp.pivot_table(index=["locus"],
+                                        columns=["Sample ID", "Subject ID", "cat", "run_no"],
+                                        values="vaf",
+                                        fill_value="NaN")
     vaf_DF_dp_patho = merge_DF_dp_patho.pivot_table(index=["locus"],
                                                     columns=["Sample ID", "Subject ID", "cat", "run_no"],
                                                     values="vaf",
                                                     fill_value="NaN")
-    vaf_DF_dp_patho_CRC = merge_DF_dp_patho_CRC.pivot_table(index=["locus"],
-                                                            columns=["Sample ID", "Subject ID", "cat", "run_no"],
-                                                            values="vaf",
-                                                            fill_value="NaN")
-    vaf_DF_dp_patho_Control = merge_DF_dp_patho_Control.pivot_table(index=["locus"],
-                                                                    columns=["Sample ID", "Subject ID", "cat", "run_no"],
-                                                                    values="vaf",
-                                                                    fill_value="NaN")
-    vaf_DF_dp_patho_Polyps = merge_DF_dp_patho_Polyps.pivot_table(index=["locus"],
-                                                                  columns=["Sample ID", "Subject ID", "cat", "run_no"],
-                                                                  values="vaf",
-                                                                  fill_value="NaN")
-    # Merge VAF matrices
-    vaf_DF_dp_patho_CRC_merge_Control = pd.merge(left=vaf_DF_dp_patho_CRC,
-                                                 right=vaf_DF_dp_patho_Control,
-                                                 how="left",
-                                                 on=["locus"])
-    vaf_DF_dp_patho_CRC_merge_Control_Polyps = pd.merge(left=vaf_DF_dp_patho_CRC_merge_Control,
-                                                        right=vaf_DF_dp_patho_Polyps,
-                                                        how="left",
-                                                        on=["locus"])
+    vaf_DF_dp_CRC_Control = merge_DF_dp_CRC_Control.pivot_table(index=["locus"],
+                                                                columns=["Sample ID", "Subject ID",
+                                                                         "cat", "run_no"],
+                                                                values="vaf",
+                                                                fill_value="NaN")
+    vaf_DF_dp_CRC_Control_patho = merge_DF_dp_CRC_Control_patho.pivot_table(index=["locus"],
+                                                                            columns=["Sample ID", "Subject ID",
+                                                                                     "cat", "run_no"],
+                                                                            values="vaf",
+                                                                            fill_value="NaN")
+
+    # Merge VAF matrices and remove duplicate columns
+    vaf_DF_dp_diff_cols = vaf_DF_dp.columns.difference(vaf_DF_dp_patho.columns)
+    vaf_DF_dp_patho_merge_vaf_DF_dp = pd.merge(left=vaf_DF_dp_patho,
+                                               right=vaf_DF_dp[vaf_DF_dp_diff_cols],
+                                               how="left",
+                                               on=["locus"])
+    vaf_DF_dp_CRC_Control_diff_cols = vaf_DF_dp_CRC_Control.columns.difference(vaf_DF_dp_CRC_Control_patho.columns)
+    vaf_DF_dp_CRC_Control_patho_merge_vaf_DF_dp_CRC_Control = pd.merge(left=vaf_DF_dp_CRC_Control_patho,
+                                                                       right=vaf_DF_dp_CRC_Control[vaf_DF_dp_CRC_Control_diff_cols],
+                                                                       how="left",
+                                                                       on=["locus"])
     vaf_DF_dp_patho.to_csv("results/vaf_DF_dp_patho.tsv",
-                            na_rep="NaN", sep="\t", header=True, index=True)
-    vaf_DF_dp_patho_CRC_merge_Control.to_csv("results/vaf_DF_dp_patho_CRC_merge_Control.tsv",
-                                             na_rep="NaN", sep="\t", header=True, index=True)
-    vaf_DF_dp_patho_CRC_merge_Control_Polyps.to_csv("results/vaf_DF_dp_patho_CRC_merge_Control_Polyps.tsv",
-                                                    na_rep="NaN", sep="\t", header=True, index=True)
+                           na_rep="NaN", sep="\t", header=True, index=True)
+    vaf_DF_dp_patho_merge_vaf_DF_dp.to_csv("results/vaf_DF_dp_patho_merge_vaf_DF_dp.tsv",
+                                           na_rep="NaN", sep="\t", header=True, index=True)
+    vaf_DF_dp_CRC_Control_patho.to_csv("results/vaf_DF_dp_CRC_Control_patho.tsv",
+                                       na_rep="NaN", sep="\t", header=True, index=True)
+    vaf_DF_dp_CRC_Control_patho_merge_vaf_DF_dp_CRC_Control.to_csv("results/vaf_DF_dp_CRC_Control_patho_merge_vaf_DF_dp_CRC_Control.tsv",
+                                                                   na_rep="NaN", sep="\t", header=True, index=True)
 
 
 def main():

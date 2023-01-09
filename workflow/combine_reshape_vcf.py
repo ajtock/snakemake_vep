@@ -173,7 +173,7 @@ def merge_vcf_mani(vcf_DF, mani_csv):
     merge_DF_dp_patho = merge_DF_dp.loc[
         (merge_DF_dp["alt_depth"] >= 3) & \
         (merge_DF_dp["gene_symbol"].str.contains("|".join(gene_list))) & \
-        #(merge_DF_dp["vaf"] < 0.25) & \
+        (merge_DF_dp["vaf"] < 0.25) & \
         (~merge_DF_dp["FILTER"].str.contains("|".join(["NM8.0", "Q10", "q22.5"]))) & \
         (merge_DF_dp["CSQ"].str.contains("pathogenic", case=False)) & \
         (~merge_DF_dp["CSQ"].str.contains("Conflicting", case=False))
@@ -181,11 +181,11 @@ def merge_vcf_mani(vcf_DF, mani_csv):
     merge_DF_dp_CRC_Control_patho = merge_DF_dp_CRC_Control.loc[
         (merge_DF_dp_CRC_Control["alt_depth"] >= 3) & \
         (merge_DF_dp_CRC_Control["gene_symbol"].str.contains("|".join(gene_list))) & \
-        # (merge_DF_dp_CRC_Control["vaf"] < 0.25) & \
+        (merge_DF_dp_CRC_Control["vaf"] < 0.25) & \
         (~merge_DF_dp_CRC_Control["FILTER"].str.contains("|".join(["NM8.0", "Q10", "q22.5"]))) & \
         (merge_DF_dp_CRC_Control["CSQ"].str.contains("pathogenic", case=False)) & \
         (~merge_DF_dp_CRC_Control["CSQ"].str.contains("Conflicting", case=False))
-        ]
+    ]
 
     # Reshape as matrices of VAF values
     vaf_DF_dp = merge_DF_dp.pivot_table(index=["locus"],

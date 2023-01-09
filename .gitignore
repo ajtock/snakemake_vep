@@ -3,6 +3,8 @@
 .DS_Store
 .Rhistory
 .RData
+*.csv
+*.csv.gz
 *.vcf
 *.vcf.gz
 *.mut
